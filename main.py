@@ -1,12 +1,13 @@
 import pygame
 import random
+import math
 import os
 
 pygame.font.init()
 pygame.mixer.init()
 
 
-WIDTH, HEIGHT = 900, 500
+WIDTH, HEIGHT = 1200, 700
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
@@ -20,9 +21,9 @@ BORDER = pygame.Rect(WIDTH//2 - 5, 0, 10, HEIGHT)
 HEALTH_FONT = pygame.font.SysFont('comicsans', 40)
 WINNER_FONT = pygame.font.SysFont('comicsans', 100)
 
-FPS = 60
+FPS = 30
 MONSTER_VEL = 1
-PLAYER_VEL = 4
+PLAYER_VEL = 3
 MONSTER_WIDTH, MONSTER_HEIGHT = 30, 30
 PLAYER_WIDTH, PLAYER_HEIGHT = 20, 20
 
@@ -60,11 +61,13 @@ def handle_monster_movement(monster, player):
     # Calculate the direction vector from the monster to the player
     dx = player.x - monster.x
     dy = player.y - monster.y
-    # Calculate the length of the direction vector (distance between monster and player)
-    length = max(1, abs(dx) + abs(dy) + 0.1)  # Ensure the length is at least 1 to avoid division by zero
-    # Calculate the velocity components to move the monster towards the player
-    vel_x = (MONSTER_VEL * dx) / length
-    vel_y = (MONSTER_VEL * dy) / length
+
+    # Calculate the angle between the monster and the player
+    angle = math.atan2(dy, dx)
+    # Calculate the X and Y components of the velocity using trigonometric functions
+    vel_x = MONSTER_VEL * math.cos(angle)
+    vel_y = MONSTER_VEL * math.sin(angle)
+
     # Update the monster's position
     monster.x += vel_x
     monster.y += vel_y
