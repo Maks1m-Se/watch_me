@@ -48,6 +48,9 @@ CONCRETE = pygame.transform.scale(
     (WIDTH, HEIGHT)
     )
 
+# Create a mask surface to represent the visible area
+mask = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+mask.set_alpha(200)  # Set the initial transparency (200 for slight transparency)
 
 def draw_window(monster, player):
     WIN.blit(CONCRETE, (0, 0))
@@ -72,6 +75,7 @@ def handle_monster_movement(monster, player):
     monster.x += vel_x
     monster.y += vel_y
     #print(vel_x, vel_y)
+
 
 def handle_player_movement(keys_pressed, player):
     if keys_pressed[pygame.K_a]: # LEFt
