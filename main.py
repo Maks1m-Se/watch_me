@@ -1,6 +1,7 @@
 import pygame
 import random
 import math 
+import numpy as np
 import os
 
 # Initialize pygame modules
@@ -54,7 +55,6 @@ CONCRETE = pygame.transform.scale(
     (WIDTH, HEIGHT)
     )
 
-#DARKNESS = pygame.draw.polygon()
 
 # Create a mask surface to represent the visible area
 mask = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -65,14 +65,84 @@ mask.set_alpha(200)  # Set the initial transparency (200 for slight transparency
 def draw_window(monster, player):
     WIN.blit(CONCRETE, (0, 0))
     WIN.blit(MONSTER, (monster.x, monster.y))
-    WIN.blit(PLAYER, (player.x, player.y))
-
-    #Darkness
-    vector_darkness = [[900, 300], [600, 400], [600, 300]]
-
-
-    pygame.draw.polygon(WIN, (0, 0, 0, 127), vector_darkness)
     
+
+
+
+    ####### TEST Darkness ######
+    
+    # mouse position
+    mouse_pos = pygame.mouse.get_pos()
+    print('mouse_pos', mouse_pos)
+
+    ## lines light cone
+    light_angle = 45
+    beta_l = - light_angle/2
+    beta_r = light_angle/2
+
+    
+    v_lamp_pos = np.array([player.x + PLAYER_WIDTH/2, player.y])
+    v_middle = np.array([v_lamp_pos[0]-mouse_pos[0], v_lamp_pos[1]-mouse_pos[1]])
+
+
+    # Convert beta to radians
+    beta_rad_l = math.radians(beta_l)
+    beta_rad_r = math.radians(beta_r)
+
+    # Calculate the rotated vector v2 using the rotation matrix
+    rotation_matrix_l = np.array([[math.cos(beta_rad_l), -math.sin(beta_rad_l)],
+                                  [math.sin(beta_rad_l), math.cos(beta_rad_l)]])
+    
+    rotation_matrix_r = np.array([[math.cos(beta_rad_r), -math.sin(beta_rad_r)],
+                                  [math.sin(beta_rad_r), math.cos(beta_rad_r)]])
+
+
+    v_left = np.dot(rotation_matrix_l, v_middle)
+    v_right = np.dot(rotation_matrix_r, v_middle)
+
+    
+    #normalize and elongate the vectors
+    v_left_norm = np.linalg.norm(v_left)
+    v_right_norm = np.linalg.norm(v_right)
+    len_factor = 100
+    v_left_len = v_left / v_left_norm * len_factor
+    v_right_len = v_right / v_right_norm * len_factor
+    # use normalized and elongated vectors
+
+
+    print('v_middle:', v_middle)
+    print('v_left:', v_left)
+    print('v_right:', v_right)
+    print('v_left_len:', v_left_len)
+    print('v_right_len:', v_right_len)
+
+
+    light_line_middle, light_line_left, light_line_right = v_middle*1+v_lamp_pos, v_left_len*100+v_lamp_pos, v_right_len*100+v_lamp_pos
+
+    pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, light_line_middle, width=3)
+    pygame.draw.line(WIN, (200, 0, 0), v_lamp_pos, light_line_left, width=10)
+    pygame.draw.line(WIN, (0, 200, 0), v_lamp_pos, light_line_right, width=10)
+
+    reflextion_middle = light_line_middle-2*(light_line_middle-v_lamp_pos)
+    reflextion_right = light_line_right-2*(light_line_right-v_lamp_pos)
+    reflextion_left = light_line_left-2*(light_line_left-v_lamp_pos)
+
+    pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, reflextion_middle, width=2)
+    pygame.draw.line(WIN, (200, 0, 0), v_lamp_pos, reflextion_left, width=7)
+    pygame.draw.line(WIN, (0, 200, 0), v_lamp_pos, reflextion_right, width=7)
+
+    vector_darkness = [light_line_left,
+                       light_line_right,
+                       reflextion_left,
+                       v_lamp_pos,
+                       reflextion_right
+                       ]
+    pygame.draw.polygon(WIN, (0, 0, 0, 100), vector_darkness)
+
+
+    ###### END TEST Darkness ######
+
+    WIN.blit(PLAYER, (player.x, player.y))
 
     pygame.display.update()
 

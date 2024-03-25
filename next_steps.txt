@@ -1,0 +1,12 @@
+- random maze or obsticles
+- figure out collision player
+
+- monster can go through walls? pro: no path finding nessecary
+
+- light is dimmer and darker when further from the player
+--> idea layer of cicular gradient around player at all times
+
+
+- idea: mouse position relativ to player
+--> if further from player: light cone wider, but light dimmer and shorter
+--> if closer to player: light cone more narrow, but brighter and longer
