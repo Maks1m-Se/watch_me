@@ -36,6 +36,9 @@ PLAYER_VEL = 3
 MONSTER_WIDTH, MONSTER_HEIGHT = 30, 30
 PLAYER_WIDTH, PLAYER_HEIGHT = 20, 20
 draw_blood = False
+stop_mixer = False
+blood_list = []
+blood_stain_list = []
 
 
 # Load game assets
@@ -47,18 +50,21 @@ PLAYER = pygame.transform.rotate(
     )
 
 MONSTER_IMAGE = pygame.image.load(
-    os.path.join('assets', 'images', 'monster.png')
+    os.path.join('assets', 'images', 'monster-removebg-preview.png')
     )
 MONSTER = pygame.transform.rotate(
     pygame.transform.scale(MONSTER_IMAGE, (MONSTER_WIDTH, MONSTER_HEIGHT)), 0
     )
-
 
 CONCRETE = pygame.transform.scale(
     pygame.image.load(os.path.join('assets', 'images', 'concrete.jpg')),
     (WIDTH, HEIGHT)
     )
 
+possessed_laugh_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'collide', 'possessed-laugh-94851.mp3'))
+slit_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '104045__willhiccups__knife-slits-1.mp3'))
+monster_eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '472598__audiopapkin__monster-sound-effects-14.wav'))
+eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '712065__audiopapkin__monster-eating.wav'))
 
 # # Create a mask surface to represent the visible area
 # mask = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
@@ -160,19 +166,60 @@ def draw_window(monster, player):
 def drawing_blood(player):
     global draw_blood
     if draw_blood:
-        BLOOD_COLOR = (random.randint(150,255),
-                       random.randint(0, 50),
-                       random.randint(0, 50),
-                       10)
-        blood_screen = WIN.convert_alpha()
-        blood_screen.fill([0,0,0,0])
-        pygame.draw.circle(blood_screen,
-                           BLOOD_COLOR,
-                           (player.x + PLAYER_WIDTH/2 + random.randint(-30, 30),
-                            player.y + PLAYER_HEIGHT/2 + random.randint(-30, 30)),
-                            random.randint(1, 30))
-        WIN.blit(blood_screen, (0, 0))
+
+        WIN.blit(CONCRETE, (0, 0))
+
+        BLOOD_COLOR = (random.randint(90,255),
+                       random.randint(0, 5),
+                       random.randint(0, 5))
+        
+        blood_size_factor = random.randint(1, 50)
+        blood_distance = int((290/blood_size_factor)**1.4)
+        blood = {
+            'color': BLOOD_COLOR,
+            'position': (player.x + PLAYER_WIDTH//2 + random.randint(-blood_distance, blood_distance),
+                         player.y + PLAYER_HEIGHT//2 + random.randint(-blood_distance, blood_distance)),
+            'radius': int(blood_size_factor/1.5),
+            'alpha': random.randint(1, int(250 * math.exp(-0.09 * blood_size_factor) + 1))
+        }
+
+        blood_stain = {
+            'color': (130,0,0),
+            'position': (player.x + PLAYER_WIDTH//2,
+                         player.y + PLAYER_HEIGHT//2),
+            'radius': random.randint(5, 10),
+            'alpha': 30
+        }
+
+        blood_list.append(blood)
+        blood_stain_list.append(blood_stain)
+
+        # Draw blood stains
+        for blood_stain in blood_stain_list:
+            blood_stain_surf = pygame.Surface((blood_stain['radius']*2, blood_stain['radius']*2), pygame.SRCALPHA)
+            pygame.draw.circle(blood_stain_surf, blood_stain['color'] + (blood_stain['alpha'],), (blood_stain['radius'], blood_stain['radius']), blood_stain['radius'])
+            WIN.blit(blood_stain_surf, (blood_stain['position'][0] - blood_stain['radius'], blood_stain['position'][1] - blood_stain['radius']))
+
+        # draw player and monster
+        mon_rand_x = random.choice([-2,-1,-1,-1,-1,0,0,0,0,1,1,1,1,2,-10,10])
+        mon_rand_y = random.choice([-2,-1,-1,-1,-1,0,0,0,0,1,1,1,1,2,-10,10])
+        player.x += random.choice([-3,0,1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0-1,0,0,0,0,0,3,7])
+        player.y += random.choice([-4,-2-1,-1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,-1,0,0,0,0,0,0,0,0,3,4])
+        
+        WIN.blit(PLAYER, (player.x, player.y))
+        WIN.blit(MONSTER, (player.x + mon_rand_x, player.y + mon_rand_y))
+
+        # Draw blood splatters
+        for blood in blood_list:
+            blood_surf = pygame.Surface((blood['radius']*2, blood['radius']*2), pygame.SRCALPHA)
+            pygame.draw.circle(blood_surf, blood['color'] + (blood['alpha'],), (blood['radius'], blood['radius']), blood['radius'])
+            WIN.blit(blood_surf, (blood['position'][0] - blood['radius'], blood['position'][1] - blood['radius']))
+        
+        
+        
         pygame.display.update()
+            
+
 
 # Function movement of the monster
 def handle_monster_movement(monster, player):
@@ -207,7 +254,7 @@ def handle_player_movement(keys_pressed, player):
 
 ### Main game loop ###
 def main():
-    global PLAYER_VEL, draw_blood
+    global PLAYER_VEL, draw_blood, stop_mixer
     
     monster_rect = pygame.Rect(WIDTH // 5 * 1, HEIGHT // 2,
                                MONSTER_WIDTH, MONSTER_HEIGHT)
@@ -231,8 +278,7 @@ def main():
 
     ambient_sound.play()
     while run:
-        #debugging space
-        print('\n\n', '---Debugging---', '\n')
+        
         clock.tick(FPS)
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -243,24 +289,30 @@ def main():
         if keys_pressed[pygame.K_ESCAPE]: #ESCAPE
             run = False
             pygame.quit()
-        handle_player_movement(keys_pressed, player_rect)
+        
         handle_monster_movement(monster_rect, player_rect)
 
         if not draw_blood:
+            handle_player_movement(keys_pressed, player_rect)
             draw_window(monster_rect, player_rect)
 
         # Check for collision between monster and player (you can play the sound here)
         if monster_rect.colliderect(player_rect):
             PLAYER_VEL = 0
             draw_blood = True
+            if not stop_mixer:
+                pygame.mixer.stop()
+                stop_mixer = True
+                possessed_laugh_sound.play()
+                slit_sound.play()
+                monster_eating_sound.play()
+                eating_sound.play()
+            
             drawing_blood(player_rect)
-            pygame.mixer.Sound(os.path.join('assets', 'sounds',
-                                            'collide',
-                                            'possessed-laugh-94851.mp3')).play()
             
         # Check if 15 seconds have passed since the last sound play
         current_time = pygame.time.get_ticks()
-        print('current time: ', current_time)
+        
 
         # monster sound
         if current_time - last_monster_sound_play_time >= sound_interval_monster:
@@ -274,13 +326,10 @@ def main():
         dist_monster_player = math.hypot(monster_rect.x-player_rect.x,
                                          monster_rect.y-player_rect.y)
         dist_monster_player_rel = dist_monster_player/MAX_DISTANC
-        monster_sound_vol = 1 - 1 / (1 + np.exp(-0.01 * (dist_monster_player - MAX_DISTANC*0.9)))
-        print('dist_monster_player: ', round(dist_monster_player, 2))
-        print('dist_monster_player_rel: ', round(dist_monster_player_rel, 2))
-        print('monster_sound_vol: ', round(monster_sound_vol, 2))
+        monster_sound_vol = 1 - dist_monster_player_rel
         monster_sound.set_volume(monster_sound_vol)
         ambient_sound.set_volume(monster_sound_vol)
-        print('get monster_sound vol: ', monster_sound.get_volume())
+        
 
         # ambient sound
         if current_time - last_ambient_sound_play_time >= sound_interval_ambient:
@@ -290,6 +339,19 @@ def main():
             ambient_sound.play()
 
             last_ambient_sound_play_time = current_time
+
+
+        ### Debugging ###
+        #debugging space
+        print('\n\n', '---Debugging---', '\n')
+        print('current time: ', current_time)
+        print('dist_monster_player: ', round(dist_monster_player, 2))
+        print('dist_monster_player_rel: ', round(dist_monster_player_rel, 2))
+        print('monster_sound_vol: ', round(monster_sound_vol, 2))
+        print('get monster_sound vol: ', monster_sound.get_volume())
+        print('get ambient_sound vol: ', ambient_sound.get_volume())
+        print('draw_blood: ', draw_blood)
+        print('stop_mixer: ', stop_mixer)
 
     main()
 
