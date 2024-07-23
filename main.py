@@ -1,8 +1,10 @@
 import pygame
 import random
+import time
 import math 
 import numpy as np
-import os
+import os, sys
+from button import Button
 
 # Initialize pygame modules
 pygame.init()
@@ -11,7 +13,7 @@ pygame.mixer.init()
 
 
 # Set up constants
-WIDTH, HEIGHT = 800, 800
+WIDTH, HEIGHT = 1000, 1000
 MAX_DISTANC = WIDTH
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -21,7 +23,9 @@ YELLOW = (255, 255, 0)
 
 # Create the game window
 WIN = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("WATCH ME!")
+pygame.display.set_caption("WATCH ME")
+
+
 
 
 # Game elements and attributes
@@ -42,9 +46,12 @@ draw_blood = False
 stop_mixer = False
 blood_list = []
 blood_stain_list = []
+keep_playing = False
 
 
 # Load game assets
+BG = pygame.image.load("assets/images/menu.png")
+
 PLAYER_IMAGE = pygame.image.load(
     os.path.join('assets', 'images', 'player.png')
     )
@@ -70,9 +77,19 @@ LIGHT = pygame.transform.rotate(
     pygame.transform.scale(LIGHT_IMAGE, (LIGHT_SIZE, LIGHT_SIZE)), 0)
 
 possessed_laugh_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'collide', 'possessed-laugh-94851.mp3'))
+scream_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', 'scream.mp3'))
+hit_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', 'piano-shock-impact-99701.mp3'))
+jumpscare_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', 'jumpscare-203379.mp3'))
 slit_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '104045__willhiccups__knife-slits-1.mp3'))
 monster_eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '472598__audiopapkin__monster-sound-effects-14.wav'))
 eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '712065__audiopapkin__monster-eating.wav'))
+breathing_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'breathing.mp3'))
+start_monster_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'monster_sounds', 'deep-monster-growl-86780.mp3'))
+
+# Function Press-Start-2P in the desired size
+def get_font(size): 
+    return pygame.font.Font("assets/NineteenNinetySeven-11XB.ttf", size)
+
 
 # Function to create obsticles
 def generate_obstacles(num_obstacles, player, monster):
@@ -86,8 +103,6 @@ def generate_obstacles(num_obstacles, player, monster):
             if not new_obstacle.colliderect(player) and not new_obstacle.colliderect(monster):
                 obstacle_list.append(new_obstacle)
                 break
-
-
 
 
 # Function to draw game window
@@ -287,9 +302,11 @@ def handle_player_movement(keys_pressed, player):
 
 
 ### Main game loop ###
-def main():
-    global PLAYER_VEL, draw_blood, stop_mixer
+def play_game():
+    global PLAYER_VEL, draw_blood, stop_mixer, keep_playing
     
+    pygame.display.set_caption("Play!")
+
     monster_rect = pygame.Rect(WIDTH * .1, HEIGHT * .1 ,
                                MONSTER_WIDTH, MONSTER_HEIGHT)
     player_rect = pygame.Rect(WIDTH * .9, HEIGHT * .9,
@@ -317,14 +334,28 @@ def main():
     collision_time = None
     game_end_time = 15  # seconds
 
-    ambient_sound.play()
+    start_monster_sound.play()
+    breathing_sound.play()
+    hit_sound.play()
+
+
     while run:
-        
+        PLAY_MOUSE_POS = pygame.mouse.get_pos()
         clock.tick(FPS)
+
+        # Button Back
+        PLAY_BACK = Button(image=None, pos=(WIDTH * .95, HEIGHT * .05), 
+                            text_input="BACK", font=get_font(10), base_color="Grey", hovering_color="White")
+        PLAY_BACK.changeColor(PLAY_MOUSE_POS)
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                run = False
-                pygame.quit()
+                    pygame.quit()
+                    sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if PLAY_BACK.checkForInput(PLAY_MOUSE_POS):
+                    pygame.mixer.stop()
+                    main_menu()
 
         keys_pressed = pygame.key.get_pressed()
         if keys_pressed[pygame.K_ESCAPE]: #ESCAPE
@@ -348,12 +379,17 @@ def main():
             if collision_time is not None and (pygame.time.get_ticks() - collision_time) / 1000 >= game_end_time:
                 run = False  # End the game
                 pygame.mixer.stop()
+                keep_playing = False
                 possessed_laugh_sound.play()
+                time.sleep(3)
+                main_menu()
 
             if not stop_mixer:
                 pygame.mixer.stop()
                 stop_mixer = True
-                possessed_laugh_sound.play()
+                hit_sound.play()
+                scream_sound.play()
+                jumpscare_sound
                 slit_sound.play()
                 monster_eating_sound.play()
                 eating_sound.play()
@@ -391,6 +427,9 @@ def main():
 
             last_ambient_sound_play_time = current_time
 
+        
+        PLAY_BACK.update(WIN)
+        pygame.display.update()
 
         ### Debugging ###
         #debugging space
@@ -404,7 +443,101 @@ def main():
         print('draw_blood: ', draw_blood)
         print('stop_mixer: ', stop_mixer)
 
-    main()
+### Options Menu ###
+def options():
+    global keep_playing
+    while True:
+        OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
+
+        WIN.fill("white")
+
+        OPTIONS_TEXT = get_font(30).render("This is the OPTIONS screen.", True, "Black")
+        OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(WIDTH//2, HEIGHT*0.2))
+        WIN.blit(OPTIONS_TEXT, OPTIONS_RECT)
+
+        OPTIONS_BACK = Button(image=None, pos=(WIDTH//2, HEIGHT*0.5), 
+                            text_input="BACK", font=get_font(10), base_color="Black", hovering_color="Green")
+
+        OPTIONS_BACK.changeColor(OPTIONS_MOUSE_POS)
+        OPTIONS_BACK.update(WIN)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if OPTIONS_BACK.checkForInput(OPTIONS_MOUSE_POS):
+                    keep_playing = True
+                    main_menu()
+
+        pygame.display.update()
+
+### Main Menu ###
+def main_menu():
+    global keep_playing
+
+    pygame.display.set_caption("Menu")
+
+
+    # Get dimensions of the background image
+    bg_width = BG.get_width()
+    bg_height = BG.get_height()
+
+    # Calculate the top-left position to center the image
+    bg_x = (WIDTH - bg_width) // 2
+    bg_y = (HEIGHT - bg_height) // 2
+
+    # Resize button images
+    play_image = pygame.transform.scale(pygame.image.load("assets/images/Play Rect.png"), (150, 40))
+    options_image = pygame.transform.scale(pygame.image.load("assets/images/Options Rect.png"), (150, 40))
+    quit_image = pygame.transform.scale(pygame.image.load("assets/images/Quit Rect.png"), (150, 40))
+
+    random_menu_sound = random.choice(os.listdir(r"assets\sounds\music"))
+    menu_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds',
+                                                    'music', random_menu_sound))
+
+    if not keep_playing:
+        menu_sound.play()
+    keep_playing = False
+
+    while True:
+        # Use the calculated position to blit the background image
+        WIN.blit(BG, (bg_x, bg_y))
+
+        MENU_MOUSE_POS = pygame.mouse.get_pos()
+
+        MENU_TEXT = get_font(15).render("MAIN MENU", True, "#04000D")
+        MENU_RECT = MENU_TEXT.get_rect(center=(WIDTH//2, HEIGHT*0.15))
+
+        PLAY_BUTTON = Button(image=play_image, pos=(WIDTH//2, HEIGHT*0.6), 
+                            text_input="PLAY", font=get_font(10), base_color="#9ED702", hovering_color="White")
+        OPTIONS_BUTTON = Button(image=options_image, pos=(WIDTH//2, HEIGHT*0.7), 
+                            text_input="OPTIONS", font=get_font(10), base_color="#9ED702", hovering_color="White")
+        QUIT_BUTTON = Button(image=quit_image, pos=(WIDTH//2, HEIGHT*0.8), 
+                            text_input="QUIT", font=get_font(10), base_color="#9ED702", hovering_color="White")
+
+        WIN.blit(MENU_TEXT, MENU_RECT)
+
+        for button in [PLAY_BUTTON, OPTIONS_BUTTON, QUIT_BUTTON]:
+            button.changeColor(MENU_MOUSE_POS)
+            button.update(WIN)
+        
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    pygame.mixer.stop()
+                    play_game()
+                if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS): # add later
+                    options()
+                if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    pygame.quit()
+                    sys.exit()
+
+        pygame.display.update()
+
 
 if __name__ == "__main__":
-    main()
+    main_menu()
