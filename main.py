@@ -35,6 +35,9 @@ MONSTER_VEL = 1
 PLAYER_VEL = 3
 MONSTER_WIDTH, MONSTER_HEIGHT = 30, 30
 PLAYER_WIDTH, PLAYER_HEIGHT = 20, 20
+OBSTACLE_WIDTH, OBSTACLE_HEIGHT = 50, 50
+LIGHT_SIZE =  HEIGHT * 2.5
+obstacle_list = []
 draw_blood = False
 stop_mixer = False
 blood_list = []
@@ -61,14 +64,30 @@ CONCRETE = pygame.transform.scale(
     (WIDTH, HEIGHT)
     )
 
+# load image light
+LIGHT_IMAGE = pygame.image.load(os.path.join('assets', 'images', 'lichtkegel.png')) # radial gradient used for light pattern
+LIGHT = pygame.transform.rotate(
+    pygame.transform.scale(LIGHT_IMAGE, (LIGHT_SIZE, LIGHT_SIZE)), 0)
+
 possessed_laugh_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'collide', 'possessed-laugh-94851.mp3'))
 slit_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '104045__willhiccups__knife-slits-1.mp3'))
 monster_eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '472598__audiopapkin__monster-sound-effects-14.wav'))
 eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '712065__audiopapkin__monster-eating.wav'))
 
-# # Create a mask surface to represent the visible area
-# mask = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
-# mask.set_alpha(200)  # Set the initial transparency (200 for slight transparency)
+# Function to create obsticles
+def generate_obstacles(num_obstacles, player, monster):
+    global obstacle_list
+    for _ in range(num_obstacles):
+        while True:
+            OBSTACLE_WIDTH, OBSTACLE_HEIGHT = random.randint(20, 150), random.randint(10, 80)
+            x = random.randint(0, WIDTH - OBSTACLE_WIDTH)
+            y = random.randint(HEIGHT * .15, HEIGHT * .85 - OBSTACLE_HEIGHT)
+            new_obstacle = pygame.Rect(x, y, OBSTACLE_WIDTH, OBSTACLE_HEIGHT)
+            if not new_obstacle.colliderect(player) and not new_obstacle.colliderect(monster):
+                obstacle_list.append(new_obstacle)
+                break
+
+
 
 
 # Function to draw game window
@@ -76,8 +95,13 @@ def draw_window(monster, player):
     WIN.blit(CONCRETE, (0, 0))
     WIN.blit(MONSTER, (monster.x, monster.y))
     
+    WIN.blit(LIGHT, (player.x - LIGHT_SIZE/2, player.y - LIGHT_SIZE/2))
 
+     # Draw obstacles
+    for obstacle in obstacle_list:
+        pygame.draw.rect(WIN, BLACK, obstacle)
 
+    
 
     ####### TEST Darkness ######
     
@@ -130,16 +154,16 @@ def draw_window(monster, player):
     light_line_middle, light_line_left, light_line_right = v_middle*1+v_lamp_pos, v_left_len*100+v_lamp_pos, v_right_len*100+v_lamp_pos
 
     pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, light_line_middle, width=3)
-    pygame.draw.line(WIN, (200, 0, 0), v_lamp_pos, light_line_left, width=10)
-    pygame.draw.line(WIN, (0, 200, 0), v_lamp_pos, light_line_right, width=10)
+    pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, light_line_left, width=10) # for testing red color
+    pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, light_line_right, width=10) # for testing blue color
 
     reflextion_middle = light_line_middle-2*(light_line_middle-v_lamp_pos)
     reflextion_right = light_line_right-2*(light_line_right-v_lamp_pos)
     reflextion_left = light_line_left-2*(light_line_left-v_lamp_pos)
 
-    pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, reflextion_middle, width=2)
-    pygame.draw.line(WIN, (200, 0, 0), v_lamp_pos, reflextion_left, width=7)
-    pygame.draw.line(WIN, (0, 200, 0), v_lamp_pos, reflextion_right, width=7)
+    #pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, reflextion_middle, width=2) guide line mouse
+    pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, reflextion_left, width=7) # for testing red color
+    pygame.draw.line(WIN, (0, 0, 0), v_lamp_pos, reflextion_right, width=7) # for testing blue color
 
     vector_darkness = [light_line_left,
                        light_line_right,
@@ -155,6 +179,7 @@ def draw_window(monster, player):
 
     ###### END TEST Darkness ######
 
+    
     WIN.blit(PLAYER, (player.x, player.y))
 
     
@@ -164,7 +189,7 @@ def draw_window(monster, player):
 
 # Function drawing blood
 def drawing_blood(player):
-    global draw_blood
+    global draw_blood, LIGHT_SIZE
     if draw_blood:
 
         WIN.blit(CONCRETE, (0, 0))
@@ -215,7 +240,16 @@ def drawing_blood(player):
             pygame.draw.circle(blood_surf, blood['color'] + (blood['alpha'],), (blood['radius'], blood['radius']), blood['radius'])
             WIN.blit(blood_surf, (blood['position'][0] - blood['radius'], blood['position'][1] - blood['radius']))
         
+        LIGHT_SIZE -= 2
         
+        LIGHT = pygame.transform.rotate(
+            pygame.transform.scale(LIGHT_IMAGE, (LIGHT_SIZE, LIGHT_SIZE)), 0)
+        WIN.blit(LIGHT, (player.x - LIGHT_SIZE/2, player.y - LIGHT_SIZE/2))
+
+        for obstacle in obstacle_list:
+                pygame.draw.rect(WIN, BLACK, obstacle)
+
+
         
         pygame.display.update()
             
@@ -256,11 +290,14 @@ def handle_player_movement(keys_pressed, player):
 def main():
     global PLAYER_VEL, draw_blood, stop_mixer
     
-    monster_rect = pygame.Rect(WIDTH // 5 * 1, HEIGHT // 2,
+    monster_rect = pygame.Rect(WIDTH * .1, HEIGHT * .1 ,
                                MONSTER_WIDTH, MONSTER_HEIGHT)
-    player_rect = pygame.Rect(WIDTH // 5 * 4, HEIGHT // 2,
+    player_rect = pygame.Rect(WIDTH * .9, HEIGHT * .9,
                               PLAYER_WIDTH, PLAYER_HEIGHT)
     
+    
+    generate_obstacles(50, player_rect, monster_rect)  # Generate 10 obstacles
+
     clock = pygame.time.Clock()
     run = True
 
@@ -275,6 +312,10 @@ def main():
     random_ambient_sound = random.choice(os.listdir(r"assets\sounds\ambient_sounds"))
     ambient_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds',
                                                     'ambient_sounds', random_ambient_sound))
+
+    # Variables for collision end sequence handling
+    collision_time = None
+    game_end_time = 15  # seconds
 
     ambient_sound.play()
     while run:
@@ -300,6 +341,15 @@ def main():
         if monster_rect.colliderect(player_rect):
             PLAYER_VEL = 0
             draw_blood = True
+
+            if collision_time is None:
+                collision_time = pygame.time.get_ticks()  # Record the time of collision
+            # Check if 15 seconds have passed since the collision
+            if collision_time is not None and (pygame.time.get_ticks() - collision_time) / 1000 >= game_end_time:
+                run = False  # End the game
+                pygame.mixer.stop()
+                possessed_laugh_sound.play()
+
             if not stop_mixer:
                 pygame.mixer.stop()
                 stop_mixer = True
@@ -309,6 +359,7 @@ def main():
                 eating_sound.play()
             
             drawing_blood(player_rect)
+            
             
         # Check if 15 seconds have passed since the last sound play
         current_time = pygame.time.get_ticks()
