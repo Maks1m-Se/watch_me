@@ -13,7 +13,7 @@ pygame.mixer.init()
 
 
 # Set up constants
-WIDTH, HEIGHT = 1000, 1000
+WIDTH, HEIGHT = 1000, 800
 MAX_DISTANC = WIDTH
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -37,7 +37,10 @@ WINNER_FONT = pygame.font.SysFont('comicsans', 100)
 FPS = 30
 MONSTER_VEL = 1
 PLAYER_VEL = 3
-MONSTER_WIDTH, MONSTER_HEIGHT = 30, 30
+PLAYER_DIFF_VEL = 3
+N_OBSTICLES = 30
+DIFFICULTY = 'MILD'
+MONSTER_WIDTH, MONSTER_HEIGHT = 45, 45
 PLAYER_WIDTH, PLAYER_HEIGHT = 20, 20
 OBSTACLE_WIDTH, OBSTACLE_HEIGHT = 50, 50
 LIGHT_SIZE =  HEIGHT * 2.5
@@ -51,6 +54,7 @@ keep_playing = False
 
 # Load game assets
 BG = pygame.image.load("assets/images/menu.png")
+BG_opt = pygame.image.load("assets/images/Options.png")
 
 PLAYER_IMAGE = pygame.image.load(
     os.path.join('assets', 'images', 'player.png')
@@ -85,6 +89,8 @@ monster_eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill
 eating_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'kill', '712065__audiopapkin__monster-eating.wav'))
 breathing_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'breathing.mp3'))
 start_monster_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'monster_sounds', 'deep-monster-growl-86780.mp3'))
+switch_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'switch2.mp3'))
+click_sound = pygame.mixer.Sound(os.path.join('assets', 'sounds', 'click.mp3'))
 
 # Function Press-Start-2P in the desired size
 def get_font(size): 
@@ -303,7 +309,7 @@ def handle_player_movement(keys_pressed, player):
 
 ### Main game loop ###
 def play_game():
-    global PLAYER_VEL, draw_blood, stop_mixer, keep_playing
+    global PLAYER_VEL, PLAYER_DIFF_VEL, draw_blood, stop_mixer, keep_playing, DIFFICULTY, N_OBSTICLES
     
     pygame.display.set_caption("Play!")
 
@@ -313,7 +319,7 @@ def play_game():
                               PLAYER_WIDTH, PLAYER_HEIGHT)
     
     
-    generate_obstacles(50, player_rect, monster_rect)  # Generate 10 obstacles
+    generate_obstacles(N_OBSTICLES, player_rect, monster_rect)  # Generate N obstacles
 
     clock = pygame.time.Clock()
     run = True
@@ -343,10 +349,15 @@ def play_game():
         PLAY_MOUSE_POS = pygame.mouse.get_pos()
         clock.tick(FPS)
 
-        # Button Back
+        # Button Back and Difficulty
         PLAY_BACK = Button(image=None, pos=(WIDTH * .95, HEIGHT * .05), 
                             text_input="BACK", font=get_font(10), base_color="Grey", hovering_color="White")
         PLAY_BACK.changeColor(PLAY_MOUSE_POS)
+
+        DIFFICULTY_TEXT = get_font(10).render(f"Difficulty: {DIFFICULTY}",
+                                              True, "White")
+        DIFFICULTY_RECT = DIFFICULTY_TEXT.get_rect(center=(WIDTH * .1, HEIGHT * .95))
+        
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -355,6 +366,8 @@ def play_game():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BACK.checkForInput(PLAY_MOUSE_POS):
                     pygame.mixer.stop()
+                    click_sound.play()
+                    time.sleep(1)
                     main_menu()
 
         keys_pressed = pygame.key.get_pressed()
@@ -367,6 +380,15 @@ def play_game():
         if not draw_blood:
             handle_player_movement(keys_pressed, player_rect)
             draw_window(monster_rect, player_rect)
+        
+        #collision with obsticles
+        if player_rect.collidelist(obstacle_list) >= 0:
+            print('collision with obsticle: ', player_rect.collidelist(obstacle_list))
+            safe_player_vel = PLAYER_VEL
+            PLAYER_VEL = 1
+        else:
+            PLAYER_VEL = PLAYER_DIFF_VEL
+
 
         # Check for collision between monster and player (you can play the sound here)
         if monster_rect.colliderect(player_rect):
@@ -381,7 +403,7 @@ def play_game():
                 pygame.mixer.stop()
                 keep_playing = False
                 possessed_laugh_sound.play()
-                time.sleep(3)
+                time.sleep(2)
                 main_menu()
 
             if not stop_mixer:
@@ -427,7 +449,7 @@ def play_game():
 
             last_ambient_sound_play_time = current_time
 
-        
+        WIN.blit(DIFFICULTY_TEXT, DIFFICULTY_RECT)
         PLAY_BACK.update(WIN)
         pygame.display.update()
 
@@ -445,18 +467,50 @@ def play_game():
 
 ### Options Menu ###
 def options():
-    global keep_playing
+    global keep_playing, MONSTER_VEL, PLAYER_VEL, PLAYER_DIFF_VEL, DIFFICULTY, N_OBSTICLES
+
+    # Get dimensions of the background image
+    bg_opt_width = BG_opt.get_width()
+    bg_opt_height = BG_opt.get_height()
+
+    # Calculate the top-left position to center the image
+    bg_opt_x = (WIDTH - bg_opt_width) // 2
+    bg_opt_y = (HEIGHT - bg_opt_height) // 2
+
+
+    easy_rect = pygame.transform.scale(pygame.image.load("assets/images/Options_buttons.png"), (150, 40))
+    OPTIONS_EASY = Button(image=easy_rect, pos=(WIDTH//2, HEIGHT*0.35), 
+                        text_input="MILD", font=get_font(10), base_color="Blue", hovering_color="Green")
+    medium_rect = pygame.transform.scale(pygame.image.load("assets/images/Options_buttons.png"), (150, 40))
+    OPTIONS_MEDIUM = Button(image=medium_rect, pos=(WIDTH//2, HEIGHT*0.42), 
+                        text_input="NIGHTMARE", font=get_font(10), base_color="Black", hovering_color="Green")
+    hard_rect = pygame.transform.scale(pygame.image.load("assets/images/Options_buttons.png"), (150, 40))
+    OPTIONS_HARD = Button(image=hard_rect, pos=(WIDTH//2, HEIGHT*0.49), 
+                        text_input="TERROR", font=get_font(10), base_color="Black", hovering_color="Green")
+
+    back_opt_rect = pygame.transform.scale(pygame.image.load("assets/images/Options_buttons.png"), (100, 40))
+    OPTIONS_BACK = Button(image=back_opt_rect, pos=(WIDTH//2, HEIGHT*0.8), 
+                        text_input="BACK", font=get_font(10), base_color="Black", hovering_color="Green")
+
     while True:
+        pygame.display.set_caption("Options")
         OPTIONS_MOUSE_POS = pygame.mouse.get_pos()
 
-        WIN.fill("white")
+        #WIN.fill("white")
+        WIN.blit(BG_opt, (bg_opt_x, bg_opt_y))
 
-        OPTIONS_TEXT = get_font(30).render("This is the OPTIONS screen.", True, "Black")
+        OPTIONS_TEXT = get_font(60).render("Choose difficulty.", True, "Black")
         OPTIONS_RECT = OPTIONS_TEXT.get_rect(center=(WIDTH//2, HEIGHT*0.2))
         WIN.blit(OPTIONS_TEXT, OPTIONS_RECT)
 
-        OPTIONS_BACK = Button(image=None, pos=(WIDTH//2, HEIGHT*0.5), 
-                            text_input="BACK", font=get_font(10), base_color="Black", hovering_color="Green")
+        
+
+        OPTIONS_EASY.changeColor(OPTIONS_MOUSE_POS)
+        OPTIONS_EASY.update(WIN)
+        OPTIONS_MEDIUM.changeColor(OPTIONS_MOUSE_POS)
+        OPTIONS_MEDIUM.update(WIN)
+        OPTIONS_HARD.changeColor(OPTIONS_MOUSE_POS)
+        OPTIONS_HARD.update(WIN)
 
         OPTIONS_BACK.changeColor(OPTIONS_MOUSE_POS)
         OPTIONS_BACK.update(WIN)
@@ -466,15 +520,42 @@ def options():
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.MOUSEBUTTONDOWN:
+                if OPTIONS_EASY.checkForInput(OPTIONS_MOUSE_POS):
+                    click_sound.play()
+                    OPTIONS_EASY.base_color = "Blue"
+                    OPTIONS_MEDIUM.base_color = "Black"
+                    OPTIONS_HARD.base_color = "Black"
+                    MONSTER_VEL, PLAYER_DIFF_VEL = 1, 3
+                    N_OBSTICLES = 35
+                    DIFFICULTY = "MILD"
+                if OPTIONS_MEDIUM.checkForInput(OPTIONS_MOUSE_POS):
+                    click_sound.play()
+                    OPTIONS_EASY.base_color = "Black"
+                    OPTIONS_MEDIUM.base_color = "Blue"
+                    OPTIONS_HARD.base_color = "Black"
+                    MONSTER_VEL, PLAYER_DIFF_VEL = 2, 3
+                    N_OBSTICLES = 40
+                    DIFFICULTY = "NIGHTMARE"
+                if OPTIONS_HARD.checkForInput(OPTIONS_MOUSE_POS):
+                    click_sound.play()
+                    OPTIONS_EASY.base_color = "Black"
+                    OPTIONS_MEDIUM.base_color = "Black"
+                    OPTIONS_HARD.base_color = "Blue"
+                    MONSTER_VEL, PLAYER_DIFF_VEL = 2, 3
+                    N_OBSTICLES = 50
+                    DIFFICULTY = "TERROR"
                 if OPTIONS_BACK.checkForInput(OPTIONS_MOUSE_POS):
                     keep_playing = True
+                    click_sound.play()
+                    time.sleep(1)
+                    switch_sound.play()
                     main_menu()
 
         pygame.display.update()
 
 ### Main Menu ###
 def main_menu():
-    global keep_playing
+    global keep_playing, DIFFICULTY
 
     pygame.display.set_caption("Menu")
 
@@ -509,6 +590,10 @@ def main_menu():
         MENU_TEXT = get_font(15).render("MAIN MENU", True, "#04000D")
         MENU_RECT = MENU_TEXT.get_rect(center=(WIDTH//2, HEIGHT*0.15))
 
+        DIFF_TEXT = get_font(10).render(f"Difficulty: {DIFFICULTY}", True, "White")
+        DIFF_RECT = DIFF_TEXT.get_rect(center=(WIDTH * .1, HEIGHT * .95))
+        
+
         PLAY_BUTTON = Button(image=play_image, pos=(WIDTH//2, HEIGHT*0.6), 
                             text_input="PLAY", font=get_font(10), base_color="#9ED702", hovering_color="White")
         OPTIONS_BUTTON = Button(image=options_image, pos=(WIDTH//2, HEIGHT*0.7), 
@@ -516,6 +601,7 @@ def main_menu():
         QUIT_BUTTON = Button(image=quit_image, pos=(WIDTH//2, HEIGHT*0.8), 
                             text_input="QUIT", font=get_font(10), base_color="#9ED702", hovering_color="White")
 
+        WIN.blit(DIFF_TEXT, DIFF_RECT)
         WIN.blit(MENU_TEXT, MENU_RECT)
 
         for button in [PLAY_BUTTON, OPTIONS_BUTTON, QUIT_BUTTON]:
@@ -529,10 +615,17 @@ def main_menu():
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if PLAY_BUTTON.checkForInput(MENU_MOUSE_POS):
                     pygame.mixer.stop()
+                    click_sound.play()
+                    time.sleep(1)
                     play_game()
                 if OPTIONS_BUTTON.checkForInput(MENU_MOUSE_POS): # add later
+                    click_sound.play()
+                    time.sleep(1)
+                    switch_sound.play()
                     options()
                 if QUIT_BUTTON.checkForInput(MENU_MOUSE_POS):
+                    click_sound.play()
+                    time.sleep(1)
                     pygame.quit()
                     sys.exit()
 

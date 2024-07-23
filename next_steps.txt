@@ -1,12 +1,18 @@
-- random maze or obsticles
-- figure out collision player
+- random maze or obsticles DONE
+- figure out collision player DONE
 
-- monster can go through walls? pro: no path finding nessecary
+- monster can go through walls? pro: no path finding nessecary DONE
 
-- light is dimmer and darker when further from the player
+- light is dimmer and darker when further from the player DONE
 --> idea layer of cicular gradient around player at all times
 
 
 - idea: mouse position relativ to player
 --> if further from player: light cone wider, but light dimmer and shorter
 --> if closer to player: light cone more narrow, but brighter and longer
+
+
+next step:
+- player has to stay alive for a certain amount of time to win (depending on difficulty)
+- player starts in a random corner, monster spawns somewhere random, but in opposite side
+maybe in one of the other free corners
